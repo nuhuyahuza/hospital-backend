@@ -40,7 +40,10 @@ describe('Doctor Routes', () => {
   let token: string;
   const mockDoctorId = "mock-doctor-id";
   const mockPatientId = "mock-patient-id";
-
+  
+  // Add console mocking
+  const originalConsoleError = console.error;
+  
   beforeAll(() => {
     // Create a valid JWT token
     const jwtSecret = process.env.JWT_SECRET;
@@ -48,6 +51,14 @@ describe('Doctor Routes', () => {
       throw new Error('JWT_SECRET must be defined for tests');
     }
     token = jwt.sign({ id: mockDoctorId, role: UserRole.DOCTOR }, jwtSecret);
+    
+    // Mock console.error
+    console.error = jest.fn();
+  });
+  
+  afterAll(() => {
+    // Restore console.error
+    console.error = originalConsoleError;
   });
 
   beforeEach(() => {
@@ -125,14 +136,28 @@ describe('Doctor Routes', () => {
       // Mock LLM service error
       (LLMService.prototype.processNote as jest.Mock).mockRejectedValueOnce(new Error('LLM Error'));
 
-      const response = await request(app)
-        .post(`/api/doctors/patients/${mockPatientId}/notes`)
-        .set('Authorization', `Bearer ${token}`)
-        .send({ note: "Test note" });
+      // Mock note operations
+      (prisma.note.findMany as jest.Mock).mockResolvedValueOnce([]);
+      (prisma.note.create as jest.Mock).mockResolvedValueOnce(null);
 
-      expect(response.status).toBe(500);
-      expect(response.body.status).toBe('error');
-      expect(response.body.message).toBe('Something went wrong. Please try again later.');
+      try {
+        const response = await request(app)
+          .post(`/api/doctors/patients/${mockPatientId}/notes`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({ note: "Test note" });
+
+        expect(response.status).toBe(500);
+        expect(response.body).toEqual({
+          status: 'error',
+          message: 'Something went wrong. Please try again later.'
+        });
+
+        // Verify that LLM service was called
+        expect(LLMService.prototype.processNote).toHaveBeenCalledWith("Test note");
+      } catch (error) {
+        // The error should be caught by the error middleware
+        fail('Request should not throw');
+      }
     });
 
     it('should return 404 for non-existent patient', async () => {

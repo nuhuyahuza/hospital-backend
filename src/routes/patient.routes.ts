@@ -285,7 +285,7 @@ router.get('/my-notes', async (req, res, next) => {
       data: { notes: decryptedNotes },
     });
   } catch (error) {
-    next(error);
+    next(new AppError(500, 'Internal server error'));
   }
 });
 

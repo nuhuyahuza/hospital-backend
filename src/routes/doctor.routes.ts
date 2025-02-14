@@ -226,70 +226,74 @@ router.post('/patients/:patientId/notes', async (req, res, next) => {
     }
     console.log('Patient found:', patient);
 
-    console.log('Processing note with LLM');
-    const actionableSteps = await llmService.processNote(note);
-    console.log('LLM processing complete:', actionableSteps);
+    try {
+      console.log('Processing note with LLM');
+      const actionableSteps = await llmService.processNote(note);
+      console.log('LLM processing complete:', actionableSteps);
 
-    console.log('Encrypting note');
-    const encryptedNote = EncryptionService.encryptData(note);
+      console.log('Encrypting note');
+      const encryptedNote = EncryptionService.encryptData(note);
 
-    // Cancel previous actionable steps
-    console.log('Cancelling previous actionable steps');
-    await prisma.note.findMany({
-      where: { patientId },
-      include: {
-        plan: true,
-        checklist: true,
-      },
-    }).then(async (notes) => {
-      for (const note of notes) {
-        await prisma.planItem.updateMany({
-          where: { noteId: note.id, completed: false },
-          data: { completed: true },
-        });
-        await prisma.checklistItem.updateMany({
-          where: { noteId: note.id, completed: false },
-          data: { completed: true },
+      // Cancel previous actionable steps
+      console.log('Cancelling previous actionable steps');
+      await prisma.note.findMany({
+        where: { patientId },
+        include: {
+          plan: true,
+          checklist: true,
+        },
+      }).then(async (notes) => {
+        for (const note of notes) {
+          await prisma.planItem.updateMany({
+            where: { noteId: note.id, completed: false },
+            data: { completed: true },
+          });
+          await prisma.checklistItem.updateMany({
+            where: { noteId: note.id, completed: false },
+            data: { completed: true },
+          });
+        }
+      });
+
+      console.log('Creating new note');
+      const newNote = await prisma.note.create({
+        data: {
+          doctorId: req.user.id,
+          patientId,
+          encryptedNote,
+          checklist: {
+            create: actionableSteps.checklist,
+          },
+          plan: {
+            create: actionableSteps.plan.map(item => ({
+              ...item,
+              checkIns: [],
+            })),
+          },
+        },
+        include: {
+          checklist: true,
+          plan: true,
+        },
+      });
+      console.log('Note created successfully');
+
+      res.status(201).json({
+        status: 'success',
+        data: { note: newNote },
+      });
+    } catch (error) {
+      console.error('Error in note submission:', error);
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
         });
       }
-    });
-
-    console.log('Creating new note');
-    const newNote = await prisma.note.create({
-      data: {
-        doctorId: req.user.id,
-        patientId,
-        encryptedNote,
-        checklist: {
-          create: actionableSteps.checklist,
-        },
-        plan: {
-          create: actionableSteps.plan.map(item => ({
-            ...item,
-            checkIns: [],
-          })),
-        },
-      },
-      include: {
-        checklist: true,
-        plan: true,
-      },
-    });
-    console.log('Note created successfully');
-
-    res.status(201).json({
-      status: 'success',
-      data: { note: newNote },
-    });
-  } catch (error) {
-    console.error('Error in note submission:', error);
-    if (error instanceof Error) {
-      console.error('Error details:', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      });
+      throw new AppError(500, 'Something went wrong. Please try again later.');
     }
+  } catch (error) {
     next(error);
   }
 });

@@ -24,6 +24,9 @@ export const errorHandler = (
     error: err
   });
 
+  // Set Content-Type header
+  res.setHeader('Content-Type', 'application/json');
+
   // Handle known errors
   if (err instanceof AppError) {
     res.status(err.statusCode).json({

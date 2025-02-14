@@ -50,8 +50,18 @@ describe('EncryptionService', () => {
     });
 
     it('should handle encryption errors gracefully', () => {
+      // Store the original key
+      const originalKey = process.env.ENCRYPTION_KEY;
+      
+      // Set invalid key
       process.env.ENCRYPTION_KEY = 'invalid-key';
+      
+      // Run test
       const result = EncryptionService.testEncryption();
+      
+      // Restore original key
+      process.env.ENCRYPTION_KEY = originalKey;
+      
       expect(result).toBe(false);
     });
   });

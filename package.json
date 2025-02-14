@@ -36,7 +36,10 @@
     "testEnvironment": "node",
     "moduleNameMapper": {
       "@/(.*)": "<rootDir>/src/$1"
-    }
+    },
+    "setupFilesAfterEnv": [
+      "<rootDir>/jest/setup.ts"
+    ]
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",

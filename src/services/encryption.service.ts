@@ -1,8 +1,8 @@
 import crypto from 'crypto';
 
 export class EncryptionService {
-  private static algorithm = 'aes-256-cbc';
-  private static keyLength = 32; // 32 bytes = 256 bits
+  private static readonly algorithm = 'aes-256-cbc';
+  private static readonly keyLength = 32; // 32 bytes = 256 bits
 
   private static getKey(): Buffer {
     const rawKey = process.env.ENCRYPTION_KEY;
