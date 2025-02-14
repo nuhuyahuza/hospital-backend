@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  PATIENT
+  DOCTOR
+}
+
+model User {
+  id             String    @id @default(uuid())
+  name           String
+  email          String    @unique
+  password       String
+  role           UserRole
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Doctor relationships
+  patients       User[]    @relation("DoctorToPatient")
+  doctor         User?     @relation("DoctorToPatient", fields: [assignedDoctorId], references: [id])
+  assignedDoctorId String? 
+
+  // Note relationships
+  writtenNotes   Note[]    @relation("DoctorNotes")
+  receivedNotes  Note[]    @relation("PatientNotes")
+}
+
+model Note {
+  id          String    @id @default(uuid())
+  encryptedNote String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  doctor      User      @relation("DoctorNotes", fields: [doctorId], references: [id])
+  doctorId    String
+  patient     User      @relation("PatientNotes", fields: [patientId], references: [id])
+  patientId   String
+
+  // Actionable items
+  checklist   ChecklistItem[]
+  plan       PlanItem[]
+
+  @@index([doctorId, patientId])
+}
+
+model ChecklistItem {
+  id        String    @id @default(uuid())
+  task      String
+  completed Boolean   @default(false)
+  dueDate   DateTime?
+  note      Note      @relation(fields: [noteId], references: [id])
+  noteId    String
+}
+
+model PlanItem {
+  id        String    @id @default(uuid())
+  action    String
+  frequency String
+  duration  Int
+  startDate DateTime
+  completed Boolean   @default(false)
+  checkIns  DateTime[]
+  note      Note      @relation(fields: [noteId], references: [id])
+  noteId    String
+} 

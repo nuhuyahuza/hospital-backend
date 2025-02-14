@@ -1,6 +1,6 @@
-# Hospital Backend System
+# Hospital Management System API
 
-A secure Node.js backend system for hospitals that handles user management, patient-doctor assignments, and note management with LLM-powered actionable steps extraction.
+A secure hospital backend system with LLM-powered actionable steps.
 
 ## Features
 
@@ -15,128 +15,137 @@ A secure Node.js backend system for hospitals that handles user management, pati
 
 - Node.js with TypeScript
 - Express.js
-- MongoDB with Mongoose
+- PostgreSQL with Prisma
 - Google Gemini Pro for LLM processing
 - JWT for authentication
 - AES-256-CBC for end-to-end encryption
 
 ## Prerequisites
 
-- Node.js (v14 or higher)
-- MongoDB
-- Google Cloud account with Gemini API access
+- Node.js (v18 or higher)
+- Docker and Docker Compose
+- PostgreSQL (if running without Docker)
 
-## Setup
+## Getting Started
 
-1. Clone the repository:
+1. Clone the repository
+2. Copy the example environment file:
    ```bash
-   git clone <repository-url>
-   cd hospital-backend
+   cp .env.example .env
    ```
+3. Update the `.env` file with your configuration:
+   - Set `API_URL` for your environment
+   - Set `JWT_SECRET` for authentication
+   - Set `ENCRYPTION_KEY` for data encryption
+   - Set `GEMINI_API_KEY` for LLM integration
+   - Update database credentials if needed
 
-2. Install dependencies:
+## Running the Application
+
+### Using Docker (Recommended)
+
+1. Build and start the containers:
+   ```bash
+   docker-compose up --build
+   ```
+2. The API will be available at the URL specified in your `API_URL` environment variable
+3. API documentation will be at `${API_URL}/api-docs`
+
+### Without Docker
+
+1. Install dependencies:
    ```bash
    npm install
    ```
 
-3. Create a `.env` file in the root directory:
-   ```
-   PORT=3000
-   MONGODB_URI=mongodb://localhost:27017/hospital-backend
-   JWT_SECRET=your-super-secret-jwt-key
-   GEMINI_API_KEY=your-gemini-api-key
-   ENCRYPTION_KEY=your-32-byte-encryption-key
-   ```
+2. Start PostgreSQL database
 
-4. Build the project:
+3. Run database migrations:
    ```bash
-   npm run build
+   npm run migrate
    ```
 
-5. Start the server:
+4. Start the development server:
    ```bash
-   npm start
+   npm run dev
    ```
 
-For development:
-```bash
-npm run dev
-```
+## Testing the API
 
-## API Documentation
+### Using Swagger UI
+
+1. Open `${API_URL}/api-docs` in your browser
+2. The Swagger UI provides a complete API documentation and testing interface
+3. Testing steps:
+   - First, use the `/api/auth/signup` endpoint to create a new user
+   - Then, use `/api/auth/login` to get a JWT token
+   - Click the "Authorize" button at the top and enter your JWT token
+   - Now you can test all other endpoints with authentication
+
+### Using cURL or Postman
+
+1. Create a new user:
+   ```bash
+   curl -X POST ${API_URL}/api/auth/signup \
+     -H "Content-Type: application/json" \
+     -d '{
+       "name": "Test User",
+       "email": "test@example.com",
+       "password": "password123",
+       "role": "PATIENT"
+     }'
+   ```
+
+2. Login to get JWT token:
+   ```bash
+   curl -X POST ${API_URL}/api/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{
+       "email": "test@example.com",
+       "password": "password123"
+     }'
+   ```
+
+3. Use the JWT token for authenticated requests:
+   ```bash
+   curl -X GET ${API_URL}/api/patients/appointments \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN"
+   ```
+
+## API Endpoints
 
 ### Authentication
+- POST `/api/auth/signup` - Register a new user
+- POST `/api/auth/login` - Login user
 
-#### POST /api/auth/signup
-Register a new user (patient or doctor)
-```json
-{
-  "name": "John Doe",
-  "email": "john@example.com",
-  "password": "password123",
-  "role": "patient"
-}
-```
+### Doctors
+- GET `/api/doctors/appointments` - Get doctor's appointments
+- POST `/api/doctors/notes` - Submit medical notes
+- GET `/api/doctors/patients` - Get doctor's patients
 
-#### POST /api/auth/login
-Login with email and password
-```json
-{
-  "email": "john@example.com",
-  "password": "password123"
-}
-```
+### Patients
+- GET `/api/patients/appointments` - Get patient's appointments
+- POST `/api/patients/appointments` - Schedule new appointment
+- GET `/api/patients/doctors` - Get assigned doctors
 
-### Patient Endpoints
+## Running Tests
 
-#### GET /api/patients/doctors
-Get list of available doctors
-
-#### POST /api/patients/select-doctor/:doctorId
-Select a doctor
-
-#### GET /api/patients/my-doctor
-Get current assigned doctor
-
-#### GET /api/patients/my-notes
-Get patient's notes and actionable steps
-
-#### POST /api/patients/check-in/:noteId/:planItemId
-Record a check-in for a plan item
-
-#### POST /api/patients/complete-task/:noteId/:taskId
-Mark a checklist item as completed
-
-### Doctor Endpoints
-
-#### GET /api/doctors/patients
-Get list of assigned patients
-
-#### POST /api/doctors/patients/:patientId/notes
-Submit a note for a patient
-```json
-{
-  "note": "Patient shows symptoms of..."
-}
-```
-
-#### GET /api/doctors/patients/:patientId/notes
-Get all notes for a specific patient
-
-## Security
-
-- Passwords are hashed using bcrypt
-- Patient notes are encrypted using AES-256-CBC
-- JWT tokens for authentication
-- Role-based access control
-- Input validation and sanitization
-
-## Testing
-
-Run the test suite:
 ```bash
+# Run all tests
 npm test
+
+# Run tests with coverage
+npm run test:coverage
+
+# Run tests in watch mode
+npm run test:watch
 ```
+
+## Development
+
+- Use `npm run lint` to check for code style issues
+- Use `npm run format` to format code
+- Git hooks will automatically lint and format code before commits
 
 ## License
 

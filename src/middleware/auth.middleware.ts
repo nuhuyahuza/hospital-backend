@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { User, UserRole } from '../models/user.model';
+import { prisma } from '../lib/prisma';
+import { UserRole } from '@prisma/client';
 import { AppError } from './error.middleware';
 
 interface JwtPayload {
@@ -30,7 +31,17 @@ export const protect = async (
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
 
-    const user = await User.findById(decoded.id).select('-password');
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        assignedDoctorId: true,
+      },
+    });
+
     if (!user) {
       throw new AppError(401, 'User not found');
     }
