@@ -16,7 +16,9 @@ jest.mock('../lib/prisma', () => ({
       update: jest.fn()
     },
     note: {
-      findMany: jest.fn()
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn()
     },
     planItem: {
       findFirst: jest.fn(),
@@ -371,6 +373,130 @@ describe('Patient Routes', () => {
       expect(response.status).toBe(404);
       expect(response.body.status).toBe('error');
       expect(response.body.message).toBe('Note or checklist item not found');
+    });
+  });
+
+  describe('DELETE /api/patients/notes/:noteId', () => {
+    const mockNoteId = 'note-1';
+
+    it('should soft delete a note successfully', async () => {
+      // Mock finding the note
+      (prisma.note.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: mockNoteId,
+        patientId: mockPatientId,
+        deleted: false
+      });
+
+      // Mock updating the note
+      (prisma.note.update as jest.Mock).mockResolvedValueOnce({
+        id: mockNoteId,
+        deleted: true
+      });
+
+      const response = await request(app)
+        .delete(`/api/patients/notes/${mockNoteId}`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.status).toBe('success');
+      expect(response.body.message).toBe('Note deleted successfully');
+    });
+
+    it('should return 404 for non-existent note', async () => {
+      // Mock note not found
+      (prisma.note.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      const response = await request(app)
+        .delete(`/api/patients/notes/${mockNoteId}`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(response.status).toBe(404);
+      expect(response.body.status).toBe('error');
+      expect(response.body.message).toBe('Note not found');
+    });
+  });
+
+  describe('DELETE /api/patients/check-in/:noteId/:planItemId', () => {
+    const mockNoteId = 'note-1';
+    const mockPlanItemId = 'plan-1';
+
+    it('should soft delete a plan item successfully', async () => {
+      // Mock finding the plan item
+      (prisma.planItem.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: mockPlanItemId,
+        noteId: mockNoteId,
+        patientId: mockPatientId,
+        deleted: false
+      });
+
+      // Mock updating the plan item
+      (prisma.planItem.update as jest.Mock).mockResolvedValueOnce({
+        id: mockPlanItemId,
+        deleted: true
+      });
+
+      const response = await request(app)
+        .delete(`/api/patients/check-in/${mockNoteId}/${mockPlanItemId}`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.status).toBe('success');
+      expect(response.body.message).toBe('Plan item deleted successfully');
+    });
+
+    it('should return 404 for non-existent plan item', async () => {
+      // Mock plan item not found
+      (prisma.planItem.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      const response = await request(app)
+        .delete(`/api/patients/check-in/${mockNoteId}/${mockPlanItemId}`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(response.status).toBe(404);
+      expect(response.body.status).toBe('error');
+      expect(response.body.message).toBe('Plan item not found');
+    });
+  });
+
+  describe('DELETE /api/patients/tasks/:noteId/:taskId', () => {
+    const mockNoteId = 'note-1';
+    const mockTaskId = 'task-1';
+
+    it('should soft delete a checklist item successfully', async () => {
+      // Mock finding the checklist item
+      (prisma.checklistItem.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: mockTaskId,
+        noteId: mockNoteId,
+        patientId: mockPatientId,
+        deleted: false
+      });
+
+      // Mock updating the checklist item
+      (prisma.checklistItem.update as jest.Mock).mockResolvedValueOnce({
+        id: mockTaskId,
+        deleted: true
+      });
+
+      const response = await request(app)
+        .delete(`/api/patients/tasks/${mockNoteId}/${mockTaskId}`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.status).toBe('success');
+      expect(response.body.message).toBe('Task deleted successfully');
+    });
+
+    it('should return 404 for non-existent checklist item', async () => {
+      // Mock checklist item not found
+      (prisma.checklistItem.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      const response = await request(app)
+        .delete(`/api/patients/tasks/${mockNoteId}/${mockTaskId}`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(response.status).toBe(404);
+      expect(response.body.status).toBe('error');
+      expect(response.body.message).toBe('Task not found');
     });
   });
 }); 

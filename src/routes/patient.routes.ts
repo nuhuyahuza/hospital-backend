@@ -256,7 +256,10 @@ router.get('/my-notes', async (req, res, next) => {
   try {
     const notes = await prisma.note.findMany({
       where: {
-        patientId: req.user.id,
+        AND: [
+          { patientId: req.user.id },
+          { deleted: false }
+        ]
       },
       include: {
         doctor: {
@@ -266,15 +269,23 @@ router.get('/my-notes', async (req, res, next) => {
             email: true,
           },
         },
-        checklist: true,
-        plan: true,
+        checklist: {
+          where: {
+            deleted: false
+          }
+        },
+        plan: {
+          where: {
+            deleted: false
+          }
+        }
       },
       orderBy: {
         createdAt: 'desc',
       },
     });
 
-    // Decrypt notes using the doctor's encryption
+    // Decrypt notes
     const decryptedNotes = notes.map(note => ({
       ...note,
       note: EncryptionService.decryptData(note.encryptedNote),
@@ -345,11 +356,13 @@ router.post('/check-in/:noteId/:planItemId', async (req, res, next) => {
     const planItem = await prisma.planItem.findFirst({
       where: {
         id: planItemId,
+        deleted: false,
         note: {
           id: noteId,
           patientId: req.user.id,
-        },
-      },
+          deleted: false
+        }
+      }
     });
 
     if (!planItem) {
@@ -358,18 +371,18 @@ router.post('/check-in/:noteId/:planItemId', async (req, res, next) => {
 
     await prisma.planItem.update({
       where: {
-        id: planItemId,
+        id: planItemId
       },
       data: {
         checkIns: {
-          push: new Date(),
-        },
-      },
+          push: new Date()
+        }
+      }
     });
 
     res.status(200).json({
       status: 'success',
-      message: 'Check-in recorded successfully',
+      message: 'Check-in recorded successfully'
     });
   } catch (error) {
     next(error);
@@ -432,11 +445,15 @@ router.post('/complete-task/:noteId/:taskId', async (req, res, next) => {
     const checklistItem = await prisma.checklistItem.findFirst({
       where: {
         id: taskId,
+        deleted: false,
         note: {
-          id: noteId,
-          patientId: req.user.id,
-        },
-      },
+          is: {
+            id: noteId,
+            patientId: req.user.id,
+            deleted: false
+          }
+        }
+      }
     });
 
     if (!checklistItem) {
@@ -445,16 +462,267 @@ router.post('/complete-task/:noteId/:taskId', async (req, res, next) => {
 
     await prisma.checklistItem.update({
       where: {
-        id: taskId,
+        id: taskId
       },
       data: {
-        completed: true,
-      },
+        completed: true
+      }
     });
 
     res.status(200).json({
       status: 'success',
-      message: 'Task marked as completed',
+      message: 'Task marked as completed'
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /api/patients/notes/{noteId}:
+ *   delete:
+ *     tags: [Patients]
+ *     summary: Soft delete a note
+ *     description: Mark a note as deleted (soft delete)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: noteId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID of the note to delete
+ *     responses:
+ *       200:
+ *         description: Note deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Note deleted successfully
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         description: Note not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.delete('/notes/:noteId', async (req, res, next) => {
+  try {
+    const { noteId } = req.params;
+
+    const note = await prisma.note.findFirst({
+      where: {
+        id: noteId,
+        patientId: req.user.id,
+        deleted: false
+      }
+    });
+
+    if (!note) {
+      throw new AppError(404, 'Note not found');
+    }
+
+    await prisma.note.update({
+      where: {
+        id: noteId
+      },
+      data: {
+        deleted: true
+      }
+    });
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Note deleted successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /api/patients/check-in/{noteId}/{planItemId}:
+ *   delete:
+ *     tags: [Patients]
+ *     summary: Soft delete a plan item
+ *     description: Mark a plan item as deleted (soft delete)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: noteId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID of the note
+ *       - in: path
+ *         name: planItemId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID of the plan item to delete
+ *     responses:
+ *       200:
+ *         description: Plan item deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Plan item deleted successfully
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         description: Plan item not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.delete('/check-in/:noteId/:planItemId', async (req, res, next) => {
+  try {
+    const { noteId, planItemId } = req.params;
+
+    const planItem = await prisma.planItem.findFirst({
+      where: {
+        id: planItemId,
+        note: {
+          id: noteId,
+          patientId: req.user.id
+        },
+        deleted: false
+      }
+    });
+
+    if (!planItem) {
+      throw new AppError(404, 'Plan item not found');
+    }
+
+    await prisma.planItem.update({
+      where: {
+        id: planItemId
+      },
+      data: {
+        deleted: true
+      }
+    });
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Plan item deleted successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /api/patients/tasks/{noteId}/{taskId}:
+ *   delete:
+ *     tags: [Patients]
+ *     summary: Soft delete a checklist task
+ *     description: Mark a checklist task as deleted (soft delete)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: noteId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID of the note
+ *       - in: path
+ *         name: taskId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID of the checklist task to delete
+ *     responses:
+ *       200:
+ *         description: Task deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Task deleted successfully
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         description: Task not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.delete('/tasks/:noteId/:taskId', async (req, res, next) => {
+  try {
+    const { noteId, taskId } = req.params;
+
+    const checklistItem = await prisma.checklistItem.findFirst({
+      where: {
+        id: taskId,
+        deleted: false,
+        note: {
+          is: {
+            id: noteId,
+            patientId: req.user.id,
+            deleted: false
+          }
+        }
+      }
+    });
+
+    if (!checklistItem) {
+      throw new AppError(404, 'Task not found');
+    }
+
+    await prisma.checklistItem.update({
+      where: {
+        id: taskId
+      },
+      data: {
+        deleted: true
+      }
+    });
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Task deleted successfully'
     });
   } catch (error) {
     next(error);

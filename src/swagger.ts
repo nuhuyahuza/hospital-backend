@@ -135,6 +135,11 @@ const options: swaggerJsdoc.Options = {
               type: 'string',
               format: 'uuid',
             },
+            deleted: {
+              type: 'boolean',
+              default: false,
+              description: 'Indicates if the note has been soft deleted',
+            },
             checklist: {
               type: 'array',
               items: {
@@ -173,6 +178,11 @@ const options: swaggerJsdoc.Options = {
               type: 'boolean',
               default: false,
             },
+            deleted: {
+              type: 'boolean',
+              default: false,
+              description: 'Indicates if the checklist item has been soft deleted',
+            },
             dueDate: {
               type: 'string',
               format: 'date-time',
@@ -208,6 +218,11 @@ const options: swaggerJsdoc.Options = {
             completed: {
               type: 'boolean',
               default: false,
+            },
+            deleted: {
+              type: 'boolean',
+              default: false,
+              description: 'Indicates if the plan item has been soft deleted',
             },
             checkIns: {
               type: 'array',

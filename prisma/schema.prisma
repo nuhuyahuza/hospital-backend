@@ -1,5 +1,7 @@
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["clientExtensions"]
+  engineType = "binary"
 }
 
 datasource db {
@@ -36,6 +38,7 @@ model Note {
   encryptedNote String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  deleted     Boolean   @default(false)
 
   // Relations
   doctor      User      @relation("DoctorNotes", fields: [doctorId], references: [id])
@@ -55,6 +58,7 @@ model ChecklistItem {
   task      String
   completed Boolean   @default(false)
   dueDate   DateTime?
+  deleted   Boolean   @default(false)
   note      Note      @relation(fields: [noteId], references: [id])
   noteId    String
 }
@@ -67,6 +71,7 @@ model PlanItem {
   startDate DateTime
   completed Boolean   @default(false)
   checkIns  DateTime[]
+  deleted   Boolean   @default(false)
   note      Note      @relation(fields: [noteId], references: [id])
   noteId    String
 } 
