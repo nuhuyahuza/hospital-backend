@@ -16,10 +16,12 @@ export const errorHandler = (
   res: Response,
   next: NextFunction
 ): void => {
-  console.error('Error:', {
+  // Always log the full error for debugging
+  console.error('Full error details:', {
     name: err.name,
     message: err.message,
-    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    stack: err.stack,
+    error: err
   });
 
   // Handle known errors
@@ -27,6 +29,10 @@ export const errorHandler = (
     res.status(err.statusCode).json({
       status: 'error',
       message: err.message,
+      ...(process.env.NODE_ENV === 'development' && {
+        stack: err.stack,
+        error: err
+      })
     });
     return;
   }
@@ -38,6 +44,9 @@ export const errorHandler = (
       res.status(400).json({
         status: 'error',
         message: 'A record with this value already exists.',
+        ...(process.env.NODE_ENV === 'development' && {
+          error: err
+        })
       });
       return;
     }
@@ -47,6 +56,9 @@ export const errorHandler = (
       res.status(400).json({
         status: 'error',
         message: 'Related record not found.',
+        ...(process.env.NODE_ENV === 'development' && {
+          error: err
+        })
       });
       return;
     }
@@ -56,6 +68,9 @@ export const errorHandler = (
       res.status(404).json({
         status: 'error',
         message: 'Record not found.',
+        ...(process.env.NODE_ENV === 'development' && {
+          error: err
+        })
       });
       return;
     }
@@ -70,6 +85,9 @@ export const errorHandler = (
         field: e.path.join('.'),
         message: e.message,
       })),
+      ...(process.env.NODE_ENV === 'development' && {
+        error: err
+      })
     });
     return;
   }
@@ -79,6 +97,9 @@ export const errorHandler = (
     res.status(401).json({
       status: 'error',
       message: 'Invalid token. Please log in again.',
+      ...(process.env.NODE_ENV === 'development' && {
+        error: err
+      })
     });
     return;
   }
@@ -87,6 +108,9 @@ export const errorHandler = (
     res.status(401).json({
       status: 'error',
       message: 'Your token has expired. Please log in again.',
+      ...(process.env.NODE_ENV === 'development' && {
+        error: err
+      })
     });
     return;
   }
@@ -98,6 +122,10 @@ export const errorHandler = (
     message: process.env.NODE_ENV === 'development' 
       ? err.message 
       : 'Something went wrong. Please try again later.',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+    ...(process.env.NODE_ENV === 'development' && {
+      name: err.name,
+      stack: err.stack,
+      error: err
+    })
   });
 }; 

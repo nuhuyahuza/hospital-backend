@@ -7,6 +7,7 @@ import { LLMService } from '../services/llm.service';
 import { EncryptionService } from '../services/encryption.service';
 
 const router = express.Router();
+console.log('Initializing LLM service with API key:', process.env.GEMINI_API_KEY?.substring(0, 10) + '...');
 const llmService = new LLMService();
 
 /**
@@ -207,9 +208,11 @@ router.get('/patients', async (req, res, next) => {
  */
 router.post('/patients/:patientId/notes', async (req, res, next) => {
   try {
+    console.log('Starting note submission process');
     const { patientId } = req.params;
     const { note } = req.body;
-
+    
+    console.log('Checking patient:', { patientId, doctorId: req.user.id });
     const patient = await prisma.user.findUnique({
       where: {
         id: patientId,
@@ -221,11 +224,17 @@ router.post('/patients/:patientId/notes', async (req, res, next) => {
     if (!patient) {
       throw new AppError(404, 'Patient not found or not assigned to you');
     }
+    console.log('Patient found:', patient);
 
+    console.log('Processing note with LLM');
     const actionableSteps = await llmService.processNote(note);
+    console.log('LLM processing complete:', actionableSteps);
+
+    console.log('Encrypting note');
     const encryptedNote = EncryptionService.encryptData(note);
 
     // Cancel previous actionable steps
+    console.log('Cancelling previous actionable steps');
     await prisma.note.findMany({
       where: { patientId },
       include: {
@@ -245,6 +254,7 @@ router.post('/patients/:patientId/notes', async (req, res, next) => {
       }
     });
 
+    console.log('Creating new note');
     const newNote = await prisma.note.create({
       data: {
         doctorId: req.user.id,
@@ -265,12 +275,21 @@ router.post('/patients/:patientId/notes', async (req, res, next) => {
         plan: true,
       },
     });
+    console.log('Note created successfully');
 
     res.status(201).json({
       status: 'success',
       data: { note: newNote },
     });
   } catch (error) {
+    console.error('Error in note submission:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+    }
     next(error);
   }
 });

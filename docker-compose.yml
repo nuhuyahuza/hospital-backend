@@ -4,15 +4,9 @@ services:
   app:
     build: .
     ports:
-      - "${PORT:-3003}:3003"
-    environment:
-      - NODE_ENV=production
-      - PORT=${PORT:-3003}
-      - API_URL=${API_URL:-http://localhost:3003}
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-hospital}
-      - JWT_SECRET=${JWT_SECRET}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - "${PORT}:${PORT}"
+    env_file:
+      - .env
     depends_on:
       db:
         condition: service_healthy
@@ -22,14 +16,12 @@ services:
     image: postgres:15-alpine
     ports:
       - "5432:5432"
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-      - POSTGRES_DB=${POSTGRES_DB:-hospital}
+    env_file:
+      - .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 5s
       timeout: 5s
       retries: 5
