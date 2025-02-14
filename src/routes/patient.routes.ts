@@ -256,10 +256,10 @@ router.get('/my-notes', async (req, res, next) => {
   try {
     const notes = await prisma.note.findMany({
       where: {
-        AND: [
-          { patientId: req.user.id },
-          { deleted: false }
-        ]
+        patientId: req.user.id,
+        deleted: {
+          equals: false
+        }
       },
       include: {
         doctor: {
@@ -271,12 +271,16 @@ router.get('/my-notes', async (req, res, next) => {
         },
         checklist: {
           where: {
-            deleted: false
+            deleted: {
+              equals: false
+            }
           }
         },
         plan: {
           where: {
-            deleted: false
+            deleted: {
+              equals: false
+            }
           }
         }
       },
@@ -353,6 +357,7 @@ router.post('/check-in/:noteId/:planItemId', async (req, res, next) => {
   try {
     const { noteId, planItemId } = req.params;
 
+    // Find the plan item and verify ownership
     const planItem = await prisma.planItem.findFirst({
       where: {
         id: planItemId,
@@ -362,6 +367,9 @@ router.post('/check-in/:noteId/:planItemId', async (req, res, next) => {
           patientId: req.user.id,
           deleted: false
         }
+      },
+      include: {
+        note: true
       }
     });
 
@@ -369,20 +377,51 @@ router.post('/check-in/:noteId/:planItemId', async (req, res, next) => {
       throw new AppError(404, 'Note or plan item not found');
     }
 
-    await prisma.planItem.update({
+    // Calculate the current status
+    const now = new Date();
+    const startDate = new Date(planItem.startDate);
+    const daysElapsed = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Calculate expected check-ins based on frequency
+    let expectedCheckIns = 0;
+    switch (planItem.frequency.toLowerCase()) {
+      case 'daily':
+        expectedCheckIns = daysElapsed + 1;
+        break;
+      case 'weekly':
+        expectedCheckIns = Math.floor(daysElapsed / 7) + 1;
+        break;
+      case 'as needed':
+        expectedCheckIns = 1;
+        break;
+      default:
+        expectedCheckIns = daysElapsed + 1;
+    }
+
+    // Add the check-in
+    const updatedPlanItem = await prisma.planItem.update({
       where: {
         id: planItemId
       },
       data: {
         checkIns: {
-          push: new Date()
-        }
+          push: now
+        },
+        // Mark as completed if we have all required check-ins
+        completed: planItem.checkIns.length + 1 >= planItem.duration
+      },
+      include: {
+        note: true
       }
     });
 
     res.status(200).json({
       status: 'success',
-      message: 'Check-in recorded successfully'
+      message: 'Check-in recorded successfully',
+      data: {
+        planItem: updatedPlanItem,
+        remainingCheckIns: Math.max(0, planItem.duration - (planItem.checkIns.length + 1))
+      }
     });
   } catch (error) {
     next(error);

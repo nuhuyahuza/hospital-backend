@@ -74,4 +74,17 @@ model PlanItem {
   deleted   Boolean   @default(false)
   note      Note      @relation(fields: [noteId], references: [id])
   noteId    String
+}
+
+/// Custom input types to allow deleted field in queries
+input PlanItemWhereInput {
+  deleted Boolean?
+}
+
+input NoteWhereInput {
+  deleted Boolean?
+}
+
+input ChecklistItemWhereInput {
+  deleted Boolean?
 } 

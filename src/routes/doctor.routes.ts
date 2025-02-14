@@ -5,6 +5,7 @@ import { UserRole } from '@prisma/client';
 import { AppError } from '../middleware/error.middleware';
 import { LLMService } from '../services/llm.service';
 import { EncryptionService } from '../services/encryption.service';
+import { ReminderService } from '../services/reminder.service';
 
 const router = express.Router();
 console.log('Initializing LLM service with API key:', process.env.GEMINI_API_KEY?.substring(0, 10) + '...');
@@ -227,33 +228,16 @@ router.post('/patients/:patientId/notes', async (req, res, next) => {
     console.log('Patient found:', patient);
 
     try {
+      // Cancel previous reminders before creating new ones
+      console.log('Cancelling previous reminders');
+      await ReminderService.cancelPreviousReminders(patientId);
+
       console.log('Processing note with LLM');
       const actionableSteps = await llmService.processNote(note);
       console.log('LLM processing complete:', actionableSteps);
 
       console.log('Encrypting note');
       const encryptedNote = EncryptionService.encryptData(note);
-
-      // Cancel previous actionable steps
-      console.log('Cancelling previous actionable steps');
-      await prisma.note.findMany({
-        where: { patientId },
-        include: {
-          plan: true,
-          checklist: true,
-        },
-      }).then(async (notes) => {
-        for (const note of notes) {
-          await prisma.planItem.updateMany({
-            where: { noteId: note.id, completed: false },
-            data: { completed: true },
-          });
-          await prisma.checklistItem.updateMany({
-            where: { noteId: note.id, completed: false },
-            data: { completed: true },
-          });
-        }
-      });
 
       console.log('Creating new note');
       const newNote = await prisma.note.create({

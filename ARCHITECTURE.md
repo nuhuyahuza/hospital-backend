@@ -111,27 +111,90 @@ This document outlines the key architectural decisions made in the Hospital Mana
 
 ### Reminder System
 - **Implementation**:
-  - Node-cron based scheduler
-  - Hourly checks for pending tasks
-  - Automatic task completion tracking
+  - Node-cron based scheduler running hourly
+  - Stateless processing for distributed execution
+  - Intelligent frequency-based check-in tracking
+  - Automatic missed check-in detection and handling
+  - Extensible notification system (currently logging, expandable to email/SMS)
+
 - **Features**:
-  - Frequency-based reminders
-  - Check-in tracking
-  - Duration management
+  - Multiple frequency types (daily, weekly, as-needed)
+  - Missed check-in tracking and catch-up scheduling
+  - Automatic completion detection
+  - Context-aware reminder messages
+  - Soft deletion support for plan items
+
 - **Scalability**:
   - Designed for distributed execution
-  - Non-blocking operations
-  - Error resilient
+  - Non-blocking asynchronous operations
+  - Batch processing of reminders
+  - Error resilient with per-item error handling
 
-### Action Items Processing
-- **Implementation**:
-  - AI-powered extraction of actionable items
-  - Structured format for tasks and plans
-  - Automatic due date calculation
-- **Benefits**:
-  - Consistent task formatting
-  - Easy to track and manage
-  - Automated workflow
+### Scheduling Architecture
+```
+┌─────────────────┐     ┌──────────────────┐     ┌────────────────┐
+│  Cron Trigger   │────▶│ Reminder Service │────▶│ Active Plans   │
+│  (Every Hour)   │     │ processReminders │     │    Query       │
+└─────────────────┘     └──────────────────┘     └────────────────┘
+                                │
+                                ▼
+┌─────────────────┐     ┌──────────────────┐     ┌────────────────┐
+│    Reminder     │◀────│  Status Check &  │────▶│   Update DB    │
+│   Generation    │     │  Missed Days     │     │    Status      │
+└─────────────────┘     └──────────────────┘     └────────────────┘
+        │
+        ▼
+┌─────────────────┐
+│   Notification  │
+│     System      │
+└─────────────────┘
+```
+
+### Reminder Processing Flow
+1. **Scheduler Activation**
+   - Hourly cron trigger
+   - System startup trigger
+   - Manual trigger (debug/admin)
+
+2. **Plan Item Processing**
+   - Query active, non-completed items
+   - Calculate days elapsed
+   - Determine expected check-ins
+   - Track missed check-ins
+
+3. **Status Updates**
+   - Mark items as completed when done
+   - Update missed check-in counts
+   - Generate appropriate reminders
+
+4. **Notification Handling**
+   - Generate context-aware messages
+   - Log reminders (current implementation)
+   - Extensible for multiple notification channels
+
+### Error Handling
+- Per-item error isolation
+- Continued processing despite individual failures
+- Detailed error logging
+- Automatic retry on next scheduler run
+
+### Future Considerations
+- **Scalability**
+  - Redis-based distributed locking
+  - Message queue for notification delivery
+  - Horizontal scaling of reminder processing
+
+- **Features**
+  - Real-time notifications
+  - Custom reminder frequencies
+  - Time zone support
+  - Patient preference-based scheduling
+
+- **Monitoring**
+  - Prometheus metrics
+  - Processing success rates
+  - Reminder delivery tracking
+  - Performance monitoring
 
 ## AI Integration
 

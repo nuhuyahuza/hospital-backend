@@ -8,6 +8,10 @@ A secure hospital backend system with LLM-powered actionable steps.
 - End-to-end encrypted patient notes
 - Patient-doctor assignments
 - LLM-powered actionable steps extraction from doctor notes
+- Intelligent scheduling and reminders system
+  - Frequency-based reminders (daily, weekly, as needed)
+  - Missed check-in tracking
+  - Automatic completion tracking
 - Dynamic scheduling and reminders
 - Secure API endpoints
 
@@ -150,3 +154,39 @@ npm run test:watch
 ## License
 
 ISC 
+
+## Scheduling and Reminders
+
+The system includes an intelligent scheduling system that:
+
+1. Processes reminders hourly for all active plan items
+2. Supports multiple frequency types:
+   - Daily check-ins
+   - Weekly check-ins
+   - As-needed check-ins
+3. Tracks missed check-ins and adjusts schedules accordingly
+4. Automatically marks items as completed when all required check-ins are done
+5. Generates contextual reminder messages based on patient status
+
+### Reminder Types
+
+- **Regular Reminders**: Based on plan frequency (daily/weekly)
+- **Catch-up Reminders**: For missed check-ins
+- **Completion Notifications**: When all required check-ins are done
+
+### Scheduling Configuration
+
+The scheduler runs:
+- Every hour on the hour
+- Immediately on system startup
+- When new plans are created
+- When existing plans are modified
+
+For development purposes, you can test the scheduler by:
+```bash
+# View scheduler logs
+npm run logs:scheduler
+
+# Manually trigger reminder processing
+curl -X POST ${API_URL}/api/debug/process-reminders # (requires admin access)
+``` 
