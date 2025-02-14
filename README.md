@@ -46,7 +46,11 @@ A secure hospital backend system with LLM-powered actionable steps.
 
 1. Build and start the containers:
    ```bash
-   docker-compose up --build
+   npm run backend:build
+   npm run backend
+   npm run backend:detach
+   npm run backend:logs
+   npm run backend:stop
    ```
 2. The API will be available at the URL specified in your `API_URL` environment variable
 3. API documentation will be at `${API_URL}/api-docs`

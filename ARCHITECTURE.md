@@ -205,7 +205,6 @@ This document outlines the key architectural decisions made in the Hospital Mana
 
 ### Features
 - Real-time notifications
-- Multi-language support
 - Analytics dashboard
 
 ## Conclusion
