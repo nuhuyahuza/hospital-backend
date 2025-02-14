@@ -1,6 +1,5 @@
 import express from 'express';
 import { prisma } from '../lib/prisma';
-import { UserRole } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { AppError } from '../middleware/error.middleware';

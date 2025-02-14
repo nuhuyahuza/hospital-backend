@@ -1,133 +1,53 @@
-// import request from 'supertest';
-// import mongoose from 'mongoose';
-// import { MongoMemoryServer } from 'mongodb-memory-server';
-// import app from '../index';
-// import { User } from '../models/user.model';
+import request from 'supertest';
+import { UserRole } from '@prisma/client';
+import app from '../index';
+import bcrypt from 'bcryptjs';
+import { prisma } from '../lib/prisma';
 
-// let mongoServer: MongoMemoryServer;
+jest.mock('../lib/prisma', () => ({
+  prisma: {
+    user: {
+      findUnique: jest.fn(),
+      create: jest.fn()
+    },
+    $connect: jest.fn(),
+    $disconnect: jest.fn()
+  }
+}));
 
-// beforeAll(async () => {
-//   mongoServer = await MongoMemoryServer.create();
-//   await mongoose.connect(mongoServer.getUri());
-// });
+describe('Auth Routes', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
-// afterAll(async () => {
-//   await mongoose.disconnect();
-//   await mongoServer.stop();
-// });
+  describe('POST /api/auth/login', () => {
+    it('should login successfully with valid credentials', async () => {
+      const mockUser = {
+        id: 'test-id',
+        email: 'test@example.com',
+        password: await bcrypt.hash('password123', 10),
+        role: UserRole.DOCTOR,
+        name: 'Test User'
+      };
 
-// beforeEach(async () => {
-//   await User.deleteMany({});
-// });
+      (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(mockUser);
 
-// describe('Authentication', () => {
-//   describe('POST /api/auth/signup', () => {
-//     it('should create a new patient', async () => {
-//       const response = await request(app)
-//         .post('/api/auth/signup')
-//         .send({
-//           name: 'Test Patient',
-//           email: 'patient@test.com',
-//           password: 'password123',
-//           role: 'patient',
-//         });
+      const response = await request(app)
+        .post('/api/auth/login')
+        .send({
+          email: 'test@example.com',
+          password: 'password123'
+        });
 
-//       expect(response.status).toBe(201);
-//       expect(response.body.data.user).toHaveProperty('name', 'Test Patient');
-//       expect(response.body.data.user).toHaveProperty('email', 'patient@test.com');
-//       expect(response.body.data.user).toHaveProperty('role', 'patient');
-//       expect(response.body.data).toHaveProperty('token');
-//     });
-
-//     it('should create a new doctor', async () => {
-//       const response = await request(app)
-//         .post('/api/auth/signup')
-//         .send({
-//           name: 'Test Doctor',
-//           email: 'doctor@test.com',
-//           password: 'password123',
-//           role: 'doctor',
-//         });
-
-//       expect(response.status).toBe(201);
-//       expect(response.body.data.user).toHaveProperty('name', 'Test Doctor');
-//       expect(response.body.data.user).toHaveProperty('email', 'doctor@test.com');
-//       expect(response.body.data.user).toHaveProperty('role', 'doctor');
-//       expect(response.body.data).toHaveProperty('token');
-//     });
-
-//     it('should not allow duplicate emails', async () => {
-//       await request(app)
-//         .post('/api/auth/signup')
-//         .send({
-//           name: 'Test User',
-//           email: 'test@test.com',
-//           password: 'password123',
-//           role: 'patient',
-//         });
-
-//       const response = await request(app)
-//         .post('/api/auth/signup')
-//         .send({
-//           name: 'Test User 2',
-//           email: 'test@test.com',
-//           password: 'password123',
-//           role: 'patient',
-//         });
-
-//       expect(response.status).toBe(400);
-//       expect(response.body).toHaveProperty('message', 'Email already exists');
-//     });
-//   });
-
-//   describe('POST /api/auth/login', () => {
-//     beforeEach(async () => {
-//       await request(app)
-//         .post('/api/auth/signup')
-//         .send({
-//           name: 'Test User',
-//           email: 'test@test.com',
-//           password: 'password123',
-//           role: 'patient',
-//         });
-//     });
-
-//     it('should login with correct credentials', async () => {
-//       const response = await request(app)
-//         .post('/api/auth/login')
-//         .send({
-//           email: 'test@test.com',
-//           password: 'password123',
-//         });
-
-//       expect(response.status).toBe(200);
-//       expect(response.body.data.user).toHaveProperty('name', 'Test User');
-//       expect(response.body.data.user).toHaveProperty('email', 'test@test.com');
-//       expect(response.body.data).toHaveProperty('token');
-//     });
-
-//     it('should not login with incorrect password', async () => {
-//       const response = await request(app)
-//         .post('/api/auth/login')
-//         .send({
-//           email: 'test@test.com',
-//           password: 'wrongpassword',
-//         });
-
-//       expect(response.status).toBe(401);
-//       expect(response.body).toHaveProperty('message', 'Invalid email or password');
-//     });
-
-//     it('should not login with non-existent email', async () => {
-//       const response = await request(app)
-//         .post('/api/auth/login')
-//         .send({
-//           email: 'nonexistent@test.com',
-//           password: 'password123',
-//         });
-
-//       expect(response.status).toBe(401);
-//       expect(response.body).toHaveProperty('message', 'Invalid email or password');
-//     });
-//   });
-// }); 
+      expect(response.status).toBe(200);
+      expect(response.body.status).toBe('success');
+      expect(response.body.data).toHaveProperty('token');
+      expect(response.body.data.user).toEqual({
+        id: mockUser.id,
+        email: mockUser.email,
+        name: mockUser.name,
+        role: mockUser.role
+      });
+    });
+  });
+}); 
